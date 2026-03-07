@@ -582,17 +582,124 @@ async def delete_medicamento(id_medicamento: int):
     finally:
         conn.close()
 
-# Tabla usuarios 
+
+# Tabla usuarios
 @app.get("/usuarios", tags=["Usuarios"], summary="Consultar usuarios")
 async def get_usuarios():
     conn, cursor = get_connection()
     try:
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT u.id_usuario, u.correo_electronico, u.nombre,
                    r.codigo AS rol, u.esta_activo, u.fecha_creacion
             FROM   usuarios u
             JOIN   cat_roles_usuario r ON r.id = u.id_rol
             ORDER  BY u.id_usuario
+        """
+        )
+        return cursor.fetchall()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+@app.post("/usuarios", tags=["Usuarios"], status_code=201, summary="Registrar usuario")
+async def insert_usuario(
+    correo_electronico: str, nombre: str, contrasena_hash: str, id_rol: int = 1
+):
+    """id_rol: ver GET /catalogo/roles_usuario"""
+    conn, cursor = get_connection()
+    try:
+        cursor.execute(
+            "INSERT INTO usuarios (correo_electronico, nombre, contrasena_hash, id_rol, esta_activo) VALUES (%s,%s,%s,%s,1)",
+            (correo_electronico, nombre, contrasena_hash, id_rol),
+        )
+        conn.commit()
+        return JSONResponse(
+            status_code=201,
+            content={"message": "Usuario registrado", "id": cursor.lastrowid},
+        )
+    except pymysql.IntegrityError:
+        conn.rollback()
+        raise HTTPException(
+            status_code=409, detail="El correo electrónico ya está registrado."
+        )
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+@app.put("/usuarios/{id_usuario}", tags=["Usuarios"], summary="Actualizar usuario")
+async def update_usuario(id_usuario: int, nombre: str, id_rol: int):
+    conn, cursor = get_connection()
+    try:
+        cursor.execute(
+            "SELECT id_usuario FROM usuarios WHERE id_usuario=%s", (id_usuario,)
+        )
+        if not cursor.fetchone():
+            raise HTTPException(
+                status_code=404, detail=f"Usuario id={id_usuario} no encontrado."
+            )
+        cursor.execute(
+            "UPDATE usuarios SET nombre=%s, id_rol=%s WHERE id_usuario=%s",
+            (nombre, id_rol, id_usuario),
+        )
+        conn.commit()
+        return {"message": "Usuario actualizado"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+@app.delete(
+    "/usuarios/{id_usuario}",
+    tags=["Usuarios"],
+    status_code=204,
+    summary="Desactivar usuario",
+)
+async def delete_usuario(id_usuario: int):
+    conn, cursor = get_connection()
+    try:
+        cursor.execute(
+            "SELECT id_usuario FROM usuarios WHERE id_usuario=%s", (id_usuario,)
+        )
+        if not cursor.fetchone():
+            raise HTTPException(
+                status_code=404, detail=f"Usuario id={id_usuario} no encontrado."
+            )
+        cursor.execute(
+            "UPDATE usuarios SET esta_activo=0 WHERE id_usuario=%s", (id_usuario,)
+        )
+        conn.commit()
+        return JSONResponse(status_code=204, content=None)
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+# Tabla gatos 
+@app.get("/gatos", tags=["Gatos"], summary="Consultar felinos del campus")
+async def get_gatos():
+    conn, cursor = get_connection()
+    try:
+        cursor.execute("""
+            SELECT g.id_gato, g.codigo_identificacion, g.nombre,
+                   s.codigo AS sexo, g.color_pelaje, g.peso_kg,
+                   g.esta_esterilizado, g.id_zona_habitual,
+                   g.esta_activo, g.fecha_registro
+            FROM   gatos g
+            JOIN   cat_sexos_gato s ON s.id = g.id_sexo
+            ORDER  BY g.id_gato
         """)
         return cursor.fetchall()
     except Exception as e:
@@ -600,47 +707,46 @@ async def get_usuarios():
     finally:
         conn.close()
 
-@app.post("/usuarios", tags=["Usuarios"], status_code=201, summary="Registrar usuario")
-async def insert_usuario(correo_electronico: str, nombre: str, contrasena_hash: str, id_rol: int = 1):
-    """id_rol: ver GET /catalogo/roles_usuario"""
+@app.post("/gatos", tags=["Gatos"], status_code=201, summary="Registrar felino")
+async def insert_gato(nombre: str | None = None, id_sexo: int = 3, codigo_identificacion: str | None = None, peso_kg: float = None):
+    """id_sexo: ver GET /catalogo/sexos_gato (3=DESCONOCIDO)"""
     conn, cursor = get_connection()
     try:
         cursor.execute(
-            "INSERT INTO usuarios (correo_electronico, nombre, contrasena_hash, id_rol, esta_activo) VALUES (%s,%s,%s,%s,1)",
-            (correo_electronico, nombre, contrasena_hash, id_rol)
+            "INSERT INTO gatos (nombre, id_sexo, codigo_identificacion, peso_kg, esta_activo) VALUES (%s,%s,%s,%s,1)",
+            (nombre, id_sexo, codigo_identificacion, peso_kg)
         )
         conn.commit()
-        return JSONResponse(status_code=201, content={"message": "Usuario registrado", "id": cursor.lastrowid})
-    except pymysql.IntegrityError:
-        conn.rollback(); raise HTTPException(status_code=409, detail="El correo electrónico ya está registrado.")
+        return JSONResponse(status_code=201, content={"message": "Felino registrado", "id": cursor.lastrowid})
     except Exception as e:
         conn.rollback(); raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
 
-@app.put("/usuarios/{id_usuario}", tags=["Usuarios"], summary="Actualizar usuario")
-async def update_usuario(id_usuario: int, nombre: str, id_rol: int):
+@app.put("/gatos/{id_gato}", tags=["Gatos"], summary="Actualizar felino")
+async def update_gato(id_gato: int, nombre: str | None = None, peso_kg: float = None, esta_esterilizado: int = None):
     conn, cursor = get_connection()
     try:
-        cursor.execute("SELECT id_usuario FROM usuarios WHERE id_usuario=%s", (id_usuario,))
+        cursor.execute("SELECT id_gato FROM gatos WHERE id_gato=%s", (id_gato,))
         if not cursor.fetchone():
-            raise HTTPException(status_code=404, detail=f"Usuario id={id_usuario} no encontrado.")
-        cursor.execute("UPDATE usuarios SET nombre=%s, id_rol=%s WHERE id_usuario=%s", (nombre, id_rol, id_usuario))
-        conn.commit(); return {"message": "Usuario actualizado"}
+            raise HTTPException(status_code=404, detail=f"Gato id={id_gato} no encontrado.")
+        cursor.execute("UPDATE gatos SET nombre=%s, peso_kg=%s, esta_esterilizado=%s WHERE id_gato=%s",
+                       (nombre, peso_kg, esta_esterilizado, id_gato))
+        conn.commit(); return {"message": "Felino actualizado"}
     except HTTPException: raise
     except Exception as e:
         conn.rollback(); raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
 
-@app.delete("/usuarios/{id_usuario}", tags=["Usuarios"], status_code=204, summary="Desactivar usuario")
-async def delete_usuario(id_usuario: int):
+@app.delete("/gatos/{id_gato}", tags=["Gatos"], status_code=204, summary="Dar de baja al felino")
+async def delete_gato(id_gato: int):
     conn, cursor = get_connection()
     try:
-        cursor.execute("SELECT id_usuario FROM usuarios WHERE id_usuario=%s", (id_usuario,))
+        cursor.execute("SELECT id_gato FROM gatos WHERE id_gato=%s", (id_gato,))
         if not cursor.fetchone():
-            raise HTTPException(status_code=404, detail=f"Usuario id={id_usuario} no encontrado.")
-        cursor.execute("UPDATE usuarios SET esta_activo=0 WHERE id_usuario=%s", (id_usuario,))
+            raise HTTPException(status_code=404, detail=f"Gato id={id_gato} no encontrado.")
+        cursor.execute("UPDATE gatos SET esta_activo=0 WHERE id_gato=%s", (id_gato,))
         conn.commit(); return JSONResponse(status_code=204, content=None)
     except HTTPException: raise
     except Exception as e:
