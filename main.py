@@ -1266,3 +1266,127 @@ async def delete_registro_medico(id_registro: int):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
+
+
+# ── vacunaciones ─────────────────────────────────────────────
+@app.get("/vacunaciones", tags=["Vacunaciones"], summary="Consultar vacunaciones")
+async def get_vacunaciones():
+    conn, cursor = get_connection()
+    try:
+        cursor.execute(
+            """
+            SELECT v.id_vacunacion, v.id_registro_medico, v.id_medicamento,
+                   v.numero_lote, v.fecha_aplicacion, v.dosis_ml,
+                   va.codigo AS via_administracion, v.fecha_proxima_dosis
+            FROM   vacunaciones v
+            JOIN   cat_vias_administracion va ON va.id = v.id_via_administracion
+            ORDER  BY v.id_vacunacion DESC
+        """
+        )
+        return cursor.fetchall()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+@app.post(
+    "/vacunaciones",
+    tags=["Vacunaciones"],
+    status_code=201,
+    summary="Registrar vacunación",
+)
+async def insert_vacunacion(
+    id_registro_medico: int,
+    id_medicamento: int,
+    fecha_aplicacion: str,
+    id_via_administracion: int = 1,
+):
+    """id_via_administracion: ver GET /catalogo/vias_administracion (1=SUBCUTANEA)"""
+    conn, cursor = get_connection()
+    try:
+        cursor.execute(
+            "INSERT INTO vacunaciones (id_registro_medico, id_medicamento, fecha_aplicacion, id_via_administracion) VALUES (%s,%s,%s,%s)",
+            (
+                id_registro_medico,
+                id_medicamento,
+                fecha_aplicacion,
+                id_via_administracion,
+            ),
+        )
+        conn.commit()
+        return JSONResponse(
+            status_code=201,
+            content={"message": "Vacunación registrada", "id": cursor.lastrowid},
+        )
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+@app.put(
+    "/vacunaciones/{id_vacunacion}",
+    tags=["Vacunaciones"],
+    summary="Actualizar vacunación",
+)
+async def update_vacunacion(
+    id_vacunacion: int,
+    numero_lote: str | None = None,
+    fecha_proxima_dosis: str | None = None,
+):
+    conn, cursor = get_connection()
+    try:
+        cursor.execute(
+            "SELECT id_vacunacion FROM vacunaciones WHERE id_vacunacion=%s",
+            (id_vacunacion,),
+        )
+        if not cursor.fetchone():
+            raise HTTPException(
+                status_code=404, detail=f"Vacunación id={id_vacunacion} no encontrada."
+            )
+        cursor.execute(
+            "UPDATE vacunaciones SET numero_lote=%s, fecha_proxima_dosis=%s WHERE id_vacunacion=%s",
+            (numero_lote, fecha_proxima_dosis, id_vacunacion),
+        )
+        conn.commit()
+        return {"message": "Vacunación actualizada"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+@app.delete(
+    "/vacunaciones/{id_vacunacion}",
+    tags=["Vacunaciones"],
+    status_code=204,
+    summary="Eliminar vacunación",
+)
+async def delete_vacunacion(id_vacunacion: int):
+    conn, cursor = get_connection()
+    try:
+        cursor.execute(
+            "SELECT id_vacunacion FROM vacunaciones WHERE id_vacunacion=%s",
+            (id_vacunacion,),
+        )
+        if not cursor.fetchone():
+            raise HTTPException(
+                status_code=404, detail=f"Vacunación id={id_vacunacion} no encontrada."
+            )
+        cursor.execute(
+            "DELETE FROM vacunaciones WHERE id_vacunacion=%s", (id_vacunacion,)
+        )
+        conn.commit()
+        return JSONResponse(status_code=204, content=None)
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
