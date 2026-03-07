@@ -20,7 +20,7 @@ domoticat/
 ### 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com//domoticat.git
+git clone https://github.com/Elian-dot/backend-domoticat.git
 cd domoticat
 ```
 
