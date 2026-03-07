@@ -609,7 +609,7 @@ async def insert_usuario(correo_electronico: str, nombre: str, contrasena_hash: 
             "INSERT INTO usuarios (correo_electronico, nombre, contrasena_hash, id_rol, esta_activo) VALUES (%s,%s,%s,%s,1)",
             (correo_electronico, nombre, contrasena_hash, id_rol)
         )
-        conn.commit()|
+        conn.commit()
         return JSONResponse(status_code=201, content={"message": "Usuario registrado", "id": cursor.lastrowid})
     except pymysql.IntegrityError:
         conn.rollback(); raise HTTPException(status_code=409, detail="El correo electrónico ya está registrado.")
