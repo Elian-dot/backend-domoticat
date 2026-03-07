@@ -27,3 +27,14 @@ if not DB_CONFIG["password"]:
 def get_connection():
     conn = pymysql.connect(**DB_CONFIG)
     return conn, conn.cursor()
+
+# Instacia de objeto FastAPI 
+app = FastAPI(
+    title="Domoticat API",
+    description=(
+        "**API REST** del sistema Domoticat — gestión de la comunidad felina "
+        "de la Universidad de Cundinamarca."
+    ),
+    version="1.0.0",
+)
+
