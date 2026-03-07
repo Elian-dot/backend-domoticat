@@ -914,8 +914,12 @@ async def delete_dispositivo(id_dispositivo: int):
         conn.close()
 
 
-# Tabla de dispensadores_configuracion 
-@app.get("/dispensadores_configuracion", tags=["Dispensadores Configuracion"], summary="Consultar configuraciones de dispensadores")
+# Tabla de dispensadores_configuracion
+@app.get(
+    "/dispensadores_configuracion",
+    tags=["Dispensadores Configuracion"],
+    summary="Consultar configuraciones de dispensadores",
+)
 async def get_dispensadores_configuracion():
     conn, cursor = get_connection()
     try:
@@ -926,55 +930,107 @@ async def get_dispensadores_configuracion():
     finally:
         conn.close()
 
-@app.post("/dispensadores_configuracion", tags=["Dispensadores Configuracion"], status_code=201, summary="Configurar dispensador")
-async def insert_dispensador_configuracion(id_dispositivo: int, capacidad_maxima_g: int = 2000, porcion_gramos: float = 30.0, nivel_minimo_alerta_g: int = 200):
+
+@app.post(
+    "/dispensadores_configuracion",
+    tags=["Dispensadores Configuracion"],
+    status_code=201,
+    summary="Configurar dispensador",
+)
+async def insert_dispensador_configuracion(
+    id_dispositivo: int,
+    capacidad_maxima_g: int = 2000,
+    porcion_gramos: float = 30.0,
+    nivel_minimo_alerta_g: int = 200,
+):
     conn, cursor = get_connection()
     try:
         cursor.execute(
             "INSERT INTO dispensadores_configuracion (id_dispositivo, capacidad_maxima_g, nivel_actual_g, porcion_gramos, angulo_apertura_deg, nivel_minimo_alerta_g) VALUES (%s,%s,0,%s,90,%s)",
-            (id_dispositivo, capacidad_maxima_g, porcion_gramos, nivel_minimo_alerta_g)
+            (id_dispositivo, capacidad_maxima_g, porcion_gramos, nivel_minimo_alerta_g),
         )
         conn.commit()
-        return JSONResponse(status_code=201, content={"message": "Dispensador configurado", "id": cursor.lastrowid})
+        return JSONResponse(
+            status_code=201,
+            content={"message": "Dispensador configurado", "id": cursor.lastrowid},
+        )
     except Exception as e:
-        conn.rollback(); raise HTTPException(status_code=500, detail=str(e))
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
 
-@app.put("/dispensadores_configuracion/{id_config}", tags=["Dispensadores Configuracion"], summary="Actualizar configuración de dispensador")
-async def update_dispensador_configuracion(id_config: int, porcion_gramos: float, nivel_actual_g: int):
+
+@app.put(
+    "/dispensadores_configuracion/{id_config}",
+    tags=["Dispensadores Configuracion"],
+    summary="Actualizar configuración de dispensador",
+)
+async def update_dispensador_configuracion(
+    id_config: int, porcion_gramos: float, nivel_actual_g: int
+):
     conn, cursor = get_connection()
     try:
-        cursor.execute("SELECT id_config FROM dispensadores_configuracion WHERE id_config=%s", (id_config,))
+        cursor.execute(
+            "SELECT id_config FROM dispensadores_configuracion WHERE id_config=%s",
+            (id_config,),
+        )
         if not cursor.fetchone():
-            raise HTTPException(status_code=404, detail=f"Configuración id={id_config} no encontrada.")
-        cursor.execute("UPDATE dispensadores_configuracion SET porcion_gramos=%s, nivel_actual_g=%s WHERE id_config=%s",
-                       (porcion_gramos, nivel_actual_g, id_config))
-        conn.commit(); return {"message": "Configuración actualizada"}
-    except HTTPException: raise
+            raise HTTPException(
+                status_code=404, detail=f"Configuración id={id_config} no encontrada."
+            )
+        cursor.execute(
+            "UPDATE dispensadores_configuracion SET porcion_gramos=%s, nivel_actual_g=%s WHERE id_config=%s",
+            (porcion_gramos, nivel_actual_g, id_config),
+        )
+        conn.commit()
+        return {"message": "Configuración actualizada"}
+    except HTTPException:
+        raise
     except Exception as e:
-        conn.rollback(); raise HTTPException(status_code=500, detail=str(e))
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
 
-@app.delete("/dispensadores_configuracion/{id_config}", tags=["Dispensadores Configuracion"], status_code=204, summary="Eliminar configuración de dispensador")
+
+@app.delete(
+    "/dispensadores_configuracion/{id_config}",
+    tags=["Dispensadores Configuracion"],
+    status_code=204,
+    summary="Eliminar configuración de dispensador",
+)
 async def delete_dispensador_configuracion(id_config: int):
     conn, cursor = get_connection()
     try:
-        cursor.execute("SELECT id_config FROM dispensadores_configuracion WHERE id_config=%s", (id_config,))
+        cursor.execute(
+            "SELECT id_config FROM dispensadores_configuracion WHERE id_config=%s",
+            (id_config,),
+        )
         if not cursor.fetchone():
-            raise HTTPException(status_code=404, detail=f"Configuración id={id_config} no encontrada.")
-        cursor.execute("DELETE FROM dispensadores_configuracion WHERE id_config=%s", (id_config,))
-        conn.commit(); return JSONResponse(status_code=204, content=None)
-    except HTTPException: raise
+            raise HTTPException(
+                status_code=404, detail=f"Configuración id={id_config} no encontrada."
+            )
+        cursor.execute(
+            "DELETE FROM dispensadores_configuracion WHERE id_config=%s", (id_config,)
+        )
+        conn.commit()
+        return JSONResponse(status_code=204, content=None)
+    except HTTPException:
+        raise
     except Exception as e:
-        conn.rollback(); raise HTTPException(status_code=500, detail=str(e))
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
 
 
-# Tabla de horarios_dispensacion 
-@app.get("/horarios_dispensacion", tags=["Horarios Dispensacion"], summary="Consultar horarios de dispensación")
+# Tabla de horarios_dispensacion
+@app.get(
+    "/horarios_dispensacion",
+    tags=["Horarios Dispensacion"],
+    summary="Consultar horarios de dispensación",
+)
 async def get_horarios_dispensacion():
     conn, cursor = get_connection()
     try:
@@ -985,48 +1041,228 @@ async def get_horarios_dispensacion():
     finally:
         conn.close()
 
-@app.post("/horarios_dispensacion", tags=["Horarios Dispensacion"], status_code=201, summary="Crear horario de dispensación")
-async def insert_horario_dispensacion(id_dispositivo: int, hora_programada: str, cantidad_gramos: float, dias_semana: str = "1111111", id_usuario_creacion: int = 1):
+
+@app.post(
+    "/horarios_dispensacion",
+    tags=["Horarios Dispensacion"],
+    status_code=201,
+    summary="Crear horario de dispensación",
+)
+async def insert_horario_dispensacion(
+    id_dispositivo: int,
+    hora_programada: str,
+    cantidad_gramos: float,
+    dias_semana: str = "1111111",
+    id_usuario_creacion: int = 1,
+):
     conn, cursor = get_connection()
     try:
         cursor.execute(
             "INSERT INTO horarios_dispensacion (id_dispositivo, hora_programada, dias_semana, cantidad_gramos, esta_activo, id_usuario_creacion) VALUES (%s,%s,%s,%s,1,%s)",
-            (id_dispositivo, hora_programada, dias_semana, cantidad_gramos, id_usuario_creacion)
+            (
+                id_dispositivo,
+                hora_programada,
+                dias_semana,
+                cantidad_gramos,
+                id_usuario_creacion,
+            ),
         )
         conn.commit()
-        return JSONResponse(status_code=201, content={"message": "Horario creado", "id": cursor.lastrowid})
+        return JSONResponse(
+            status_code=201,
+            content={"message": "Horario creado", "id": cursor.lastrowid},
+        )
     except Exception as e:
-        conn.rollback(); raise HTTPException(status_code=500, detail=str(e))
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
 
-@app.put("/horarios_dispensacion/{id_horario}", tags=["Horarios Dispensacion"], summary="Actualizar horario de dispensación")
-async def update_horario_dispensacion(id_horario: int, hora_programada: str, cantidad_gramos: float, esta_activo: int = 1):
+
+@app.put(
+    "/horarios_dispensacion/{id_horario}",
+    tags=["Horarios Dispensacion"],
+    summary="Actualizar horario de dispensación",
+)
+async def update_horario_dispensacion(
+    id_horario: int, hora_programada: str, cantidad_gramos: float, esta_activo: int = 1
+):
     conn, cursor = get_connection()
     try:
-        cursor.execute("SELECT id_horario FROM horarios_dispensacion WHERE id_horario=%s", (id_horario,))
+        cursor.execute(
+            "SELECT id_horario FROM horarios_dispensacion WHERE id_horario=%s",
+            (id_horario,),
+        )
         if not cursor.fetchone():
-            raise HTTPException(status_code=404, detail=f"Horario id={id_horario} no encontrado.")
-        cursor.execute("UPDATE horarios_dispensacion SET hora_programada=%s, cantidad_gramos=%s, esta_activo=%s WHERE id_horario=%s",
-                       (hora_programada, cantidad_gramos, esta_activo, id_horario))
-        conn.commit(); return {"message": "Horario actualizado"}
-    except HTTPException: raise
+            raise HTTPException(
+                status_code=404, detail=f"Horario id={id_horario} no encontrado."
+            )
+        cursor.execute(
+            "UPDATE horarios_dispensacion SET hora_programada=%s, cantidad_gramos=%s, esta_activo=%s WHERE id_horario=%s",
+            (hora_programada, cantidad_gramos, esta_activo, id_horario),
+        )
+        conn.commit()
+        return {"message": "Horario actualizado"}
+    except HTTPException:
+        raise
     except Exception as e:
-        conn.rollback(); raise HTTPException(status_code=500, detail=str(e))
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
 
-@app.delete("/horarios_dispensacion/{id_horario}", tags=["Horarios Dispensacion"], status_code=204, summary="Eliminar horario de dispensación")
+
+@app.delete(
+    "/horarios_dispensacion/{id_horario}",
+    tags=["Horarios Dispensacion"],
+    status_code=204,
+    summary="Eliminar horario de dispensación",
+)
 async def delete_horario_dispensacion(id_horario: int):
     conn, cursor = get_connection()
     try:
-        cursor.execute("SELECT id_horario FROM horarios_dispensacion WHERE id_horario=%s", (id_horario,))
+        cursor.execute(
+            "SELECT id_horario FROM horarios_dispensacion WHERE id_horario=%s",
+            (id_horario,),
+        )
         if not cursor.fetchone():
-            raise HTTPException(status_code=404, detail=f"Horario id={id_horario} no encontrado.")
-        cursor.execute("DELETE FROM horarios_dispensacion WHERE id_horario=%s", (id_horario,))
-        conn.commit(); return JSONResponse(status_code=204, content=None)
-    except HTTPException: raise
+            raise HTTPException(
+                status_code=404, detail=f"Horario id={id_horario} no encontrado."
+            )
+        cursor.execute(
+            "DELETE FROM horarios_dispensacion WHERE id_horario=%s", (id_horario,)
+        )
+        conn.commit()
+        return JSONResponse(status_code=204, content=None)
+    except HTTPException:
+        raise
     except Exception as e:
-        conn.rollback(); raise HTTPException(status_code=500, detail=str(e))
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+# Tabla de registros_medico
+@app.get(
+    "/registros_medico",
+    tags=["Registros Medico"],
+    summary="Consultar historial veterinario",
+)
+async def get_registros_medico():
+    conn, cursor = get_connection()
+    try:
+        cursor.execute(
+            """
+            SELECT r.id_registro, r.id_gato, r.id_veterinario,
+                   r.fecha_consulta, tc.codigo AS tipo_consulta,
+                   r.diagnostico, r.observaciones,
+                   r.peso_en_consulta_kg, r.fecha_proxima_cita
+            FROM   registros_medico r
+            JOIN   cat_tipos_consulta tc ON tc.id = r.id_tipo_consulta
+            ORDER  BY r.id_registro DESC
+        """
+        )
+        return cursor.fetchall()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+@app.post(
+    "/registros_medico",
+    tags=["Registros Medico"],
+    status_code=201,
+    summary="Registrar consulta veterinaria",
+)
+async def insert_registro_medico(
+    id_gato: int,
+    id_veterinario: int,
+    fecha_consulta: str,
+    id_tipo_consulta: int,
+    diagnostico: str | None = None,
+):
+    """id_tipo_consulta: ver GET /catalogo/tipos_consulta"""
+    conn, cursor = get_connection()
+    try:
+        cursor.execute(
+            "INSERT INTO registros_medico (id_gato, id_veterinario, fecha_consulta, id_tipo_consulta, diagnostico) VALUES (%s,%s,%s,%s,%s)",
+            (id_gato, id_veterinario, fecha_consulta, id_tipo_consulta, diagnostico),
+        )
+        conn.commit()
+        return JSONResponse(
+            status_code=201,
+            content={"message": "Consulta registrada", "id": cursor.lastrowid},
+        )
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+@app.put(
+    "/registros_medico/{id_registro}",
+    tags=["Registros Medico"],
+    summary="Actualizar registro médico",
+)
+async def update_registro_medico(
+    id_registro: int, diagnostico: str, observaciones: str | None = None
+):
+    conn, cursor = get_connection()
+    try:
+        cursor.execute(
+            "SELECT id_registro FROM registros_medico WHERE id_registro=%s",
+            (id_registro,),
+        )
+        if not cursor.fetchone():
+            raise HTTPException(
+                status_code=404,
+                detail=f"Registro médico id={id_registro} no encontrado.",
+            )
+        cursor.execute(
+            "UPDATE registros_medico SET diagnostico=%s, observaciones=%s WHERE id_registro=%s",
+            (diagnostico, observaciones, id_registro),
+        )
+        conn.commit()
+        return {"message": "Registro médico actualizado"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+@app.delete(
+    "/registros_medico/{id_registro}",
+    tags=["Registros Medico"],
+    status_code=204,
+    summary="Eliminar registro médico",
+)
+async def delete_registro_medico(id_registro: int):
+    conn, cursor = get_connection()
+    try:
+        cursor.execute(
+            "SELECT id_registro FROM registros_medico WHERE id_registro=%s",
+            (id_registro,),
+        )
+        if not cursor.fetchone():
+            raise HTTPException(
+                status_code=404,
+                detail=f"Registro médico id={id_registro} no encontrado.",
+            )
+        cursor.execute(
+            "DELETE FROM registros_medico WHERE id_registro=%s", (id_registro,)
+        )
+        conn.commit()
+        return JSONResponse(status_code=204, content=None)
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
