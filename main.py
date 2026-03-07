@@ -38,3 +38,79 @@ app = FastAPI(
     version="1.0.0",
 )
 
+@app.get("/", tags=["Sistema"])
+async def root():
+    return {"message": "Domoticat API v1.0 funcionando correctamente."}
+
+# Endpoints reutilizables para todos los catálogos
+
+def _cat_get(table: str):
+    conn, cursor = get_connection()
+    try:
+        cursor.execute(f"SELECT id, codigo, descripcion FROM {table} ORDER BY id")
+        return cursor.fetchall()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+def _cat_post(table: str, codigo: str, descripcion: str | None = None):
+    conn, cursor = get_connection()
+    try:
+        cursor.execute(
+            f"INSERT INTO {table} (codigo, descripcion) VALUES (%s, %s)",
+            (codigo.upper(), descripcion)
+        )
+        conn.commit()
+        return JSONResponse(status_code=201, content={"message": "Registro creado", "id": cursor.lastrowid})
+    except pymysql.IntegrityError:
+        conn.rollback()
+        raise HTTPException(status_code=409, detail=f"El código '{codigo}' ya existe en {table}.")
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+def _cat_put(table: str, id_: int, codigo: str, descripcion: str | None = None):
+    conn, cursor = get_connection()
+    try:
+        cursor.execute(f"SELECT id FROM {table} WHERE id = %s", (id_,))
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail=f"id={id_} no encontrado en {table}.")
+        cursor.execute(
+            f"UPDATE {table} SET codigo = %s, descripcion = %s WHERE id = %s",
+            (codigo.upper(), descripcion, id_)
+        )
+        conn.commit()
+        return {"message": "Registro actualizado"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+def _cat_delete(table: str, id_: int):
+    conn, cursor = get_connection()
+    try:
+        cursor.execute(f"SELECT id FROM {table} WHERE id = %s", (id_,))
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail=f"id={id_} no encontrado en {table}.")
+        cursor.execute(f"DELETE FROM {table} WHERE id = %s", (id_,))
+        conn.commit()
+        return JSONResponse(status_code=204, content=None)
+    except HTTPException:
+        raise
+    except pymysql.IntegrityError:
+        conn.rollback()
+        raise HTTPException(status_code=409, detail="No se puede eliminar: existen registros que referencian este catálogo.")
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
