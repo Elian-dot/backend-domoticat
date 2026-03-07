@@ -26,6 +26,15 @@ if not DB_CONFIG["password"]:
 
 # Conexión Base de Datos
 def get_connection():
+    """
+    Establece conexión con la base de datos MySQL.
+
+    Returns:
+        tuple: (connection, cursor) para operaciones de BD
+
+    Raises:
+        RuntimeError: Si hay error de conexión
+    """
     conn = pymysql.connect(**DB_CONFIG)
     return conn, conn.cursor()
 
@@ -451,3 +460,124 @@ async def put_cat_severidades_alerta(
 )
 async def del_cat_severidades_alerta(id: int):
     return _cat_delete("cat_severidades_alerta", id)
+
+
+# Tabla medicamentos
+
+
+@app.get("/medicamentos", tags=["Medicamentos"], summary="Consultar medicamentos")
+async def get_medicamentos():
+    conn, cursor = get_connection()
+    try:
+        cursor.execute(
+            """
+            SELECT m.id_medicamento, m.nombre_comercial, m.nombre_generico,
+                   m.laboratorio, c.codigo AS tipo, m.presentacion,
+                   m.requiere_refrigeracion, m.esta_activo, m.fecha_creacion
+            FROM   medicamentos m
+            JOIN   cat_tipos_medicamento c ON c.id = m.id_tipo_medicamento
+            ORDER  BY m.id_medicamento
+        """
+        )
+        return cursor.fetchall()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+@app.post(
+    "/medicamentos",
+    tags=["Medicamentos"],
+    status_code=201,
+    summary="Registrar medicamento",
+)
+async def insert_medicamento(
+    nombre_comercial: str,
+    id_tipo_medicamento: int,
+    laboratorio: str | None = None,
+    presentacion: str | None = None,
+):
+    """id_tipo_medicamento: ver GET /catalogo/tipos_medicamento"""
+    conn, cursor = get_connection()
+    try:
+        cursor.execute(
+            "INSERT INTO medicamentos (nombre_comercial, id_tipo_medicamento, laboratorio, presentacion, esta_activo) VALUES (%s,%s,%s,%s,1)",
+            (nombre_comercial, id_tipo_medicamento, laboratorio, presentacion),
+        )
+        conn.commit()
+        return JSONResponse(
+            status_code=201,
+            content={"message": "Medicamento registrado", "id": cursor.lastrowid},
+        )
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+@app.put(
+    "/medicamentos/{id_medicamento}",
+    tags=["Medicamentos"],
+    summary="Actualizar medicamento",
+)
+async def update_medicamento(
+    id_medicamento: int, nombre_comercial: str, id_tipo_medicamento: int
+):
+    conn, cursor = get_connection()
+    try:
+        cursor.execute(
+            "SELECT id_medicamento FROM medicamentos WHERE id_medicamento=%s",
+            (id_medicamento,),
+        )
+        if not cursor.fetchone():
+            raise HTTPException(
+                status_code=404,
+                detail=f"Medicamento id={id_medicamento} no encontrado.",
+            )
+        cursor.execute(
+            "UPDATE medicamentos SET nombre_comercial=%s, id_tipo_medicamento=%s WHERE id_medicamento=%s",
+            (nombre_comercial, id_tipo_medicamento, id_medicamento),
+        )
+        conn.commit()
+        return {"message": "Medicamento actualizado"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+@app.delete(
+    "/medicamentos/{id_medicamento}",
+    tags=["Medicamentos"],
+    status_code=204,
+    summary="Eliminar medicamento",
+)
+async def delete_medicamento(id_medicamento: int):
+    conn, cursor = get_connection()
+    try:
+        cursor.execute(
+            "SELECT id_medicamento FROM medicamentos WHERE id_medicamento=%s",
+            (id_medicamento,),
+        )
+        if not cursor.fetchone():
+            raise HTTPException(
+                status_code=404,
+                detail=f"Medicamento id={id_medicamento} no encontrado.",
+            )
+        cursor.execute(
+            "DELETE FROM medicamentos WHERE id_medicamento=%s", (id_medicamento,)
+        )
+        conn.commit()
+        return JSONResponse(status_code=204, content=None)
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
